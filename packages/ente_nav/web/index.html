@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>entebot209</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
+<style>
+:root{
+  --bg:#EFE8DD; --surface:#EFE8DD; --hi:#FFFFFF; --lo:#D2C6B4;
+  --text:#3D3833; --muted:#8A8075; --accent:#E9B949; --ok:#8FAE8B; --warn:#D9785B;
+  --duck1:#E6DDCF; --duck2:#E2D8C8; --duck3:#DDD2C1; --duck4:#E9E1D5;
+  --r:20px; --r-sm:14px;
+  --out: 7px 7px 16px var(--lo), -7px -7px 16px var(--hi);
+  --out-sm: 4px 4px 9px var(--lo), -4px -4px 9px var(--hi);
+  --in: inset 4px 4px 9px var(--lo), inset -4px -4px 9px var(--hi);
+  --in-sm: inset 2px 2px 5px var(--lo), inset -2px -2px 5px var(--hi);
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 var(--sans);min-height:100vh;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:var(--surface);border-radius:var(--r-sm);box-shadow:var(--out-sm);padding:9px 14px;transition:box-shadow .18s,transform .08s,color .18s}
+button:hover{color:#000}
+button:active,button.on{box-shadow:var(--in-sm)}
+button:active{transform:translateY(1px)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+input,select{background:var(--surface);border:0;border-radius:var(--r-sm);box-shadow:var(--in);padding:11px 14px;outline:none;min-width:0}
+input::placeholder{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- duck parallax (purely decorative, behind everything) ---------- */
+#ducks{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.layer{position:absolute;inset:-12%;will-change:transform}
+.layer svg{position:absolute;overflow:visible}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+.layer svg{animation:bob 14s ease-in-out infinite}
+.layer:nth-child(2) svg{animation-duration:19s}
+.layer:nth-child(3) svg{animation-duration:23s}
+.layer:nth-child(4) svg{animation-duration:29s}
+
+/* ---------- layout ---------- */
+.wrap{position:relative;z-index:1;max-width:1480px;margin:0 auto;padding:22px 28px 40px}
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand .logo{width:46px;height:46px;border-radius:50%;box-shadow:var(--out-sm);display:grid;place-items:center}
+h1{font:600 26px/1 var(--serif);margin:0;letter-spacing:.2px}
+.sub{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px;margin-top:5px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(143,174,139,.6);animation:breathe 2.6s ease-in-out infinite}
+.dot.lost{background:var(--warn);animation:none}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(143,174,139,.55);opacity:1}50%{box-shadow:0 0 0 6px rgba(143,174,139,0);opacity:.75}}
+.seg{display:flex;padding:5px;border-radius:999px;box-shadow:var(--in-sm);gap:4px}
+.seg button{box-shadow:none;border-radius:999px;padding:8px 18px;font-weight:500;color:var(--muted);background:transparent}
+.seg button.on{box-shadow:var(--out-sm);color:var(--text);background:var(--surface)}
+.seg button.on.auto{color:#7a5a08}
+#estop{background:var(--warn);color:#fff;font:700 16px/1 var(--sans);letter-spacing:1.5px;padding:16px 26px;border-radius:999px;
+  box-shadow:6px 6px 14px #c9b9a3,-6px -6px 14px var(--hi),inset 0 -3px 0 rgba(0,0,0,.12)}
+#estop:hover{color:#fff;filter:brightness(1.04)}
+#estop.on{background:var(--surface);color:var(--warn);box-shadow:var(--in),0 0 0 3px var(--warn)}
+#alert{display:none;align-items:center;gap:14px;margin:-6px 0 20px;padding:13px 18px;border-radius:var(--r);background:var(--surface);
+  box-shadow:var(--out-sm);border-left:5px solid var(--warn);color:var(--text);font-weight:500}
+#alert.show{display:flex}
+#alert button{margin-left:auto}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(340px,1fr);gap:26px;align-items:start}
+.col{display:flex;flex-direction:column;gap:26px;min-width:0}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--out);padding:20px 22px;min-width:0}
+.card h2{font:600 17px/1.2 var(--serif);margin:0 0 14px;display:flex;align-items:center;gap:10px}
+.card h2 .tag{margin-left:auto;font:500 12px var(--sans);color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* camera */
+.cam{position:relative;border-radius:var(--r-sm);overflow:hidden;box-shadow:var(--in);background:#d9cfbf;aspect-ratio:4/3}
+#cam{width:100%;height:100%;object-fit:contain;display:block}
+#camMsg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;pointer-events:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{padding:7px 14px;border-radius:999px;font-size:13px;font-weight:500;color:var(--muted);user-select:none}
+.chip.on{color:var(--text);box-shadow:var(--in-sm)}
+.chip.on::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}
+
+/* lane gauge */
+.lane{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:14px;margin-top:16px}
+.stat{padding:12px 14px;border-radius:var(--r-sm);box-shadow:var(--in-sm);min-width:0}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font:600 20px/1.25 var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v small{font-size:12px;font-weight:500;color:var(--muted);margin-left:3px}
+.road{position:relative;height:34px;margin-top:6px;border-radius:10px;background:#cfc4b3;overflow:hidden}
+.road .yl{position:absolute;top:0;bottom:0;left:0;width:4px;background:repeating-linear-gradient(#e9b949 0 6px,transparent 6px 11px)}
+.road .wl{position:absolute;top:0;bottom:0;right:0;width:5px;background:#f6f1e6}
+.road .ctr{position:absolute;top:6px;bottom:6px;left:50%;width:1px;background:rgba(255,255,255,.45)}
+.road .bot{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;transition:left .25s ease,transform .25s ease}
+.bar{height:8px;border-radius:99px;box-shadow:var(--in-sm);margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--ok);transition:width .3s ease,background .3s}
+
+/* map */
+.mapbox{position:relative;border-radius:var(--r-sm);box-shadow:var(--in);height:460px;overflow:hidden;background:#e8e0d3}
+#map{width:100%;height:100%;display:block;cursor:crosshair;touch-action:manipulation}
+.maptools{position:absolute;right:12px;top:12px;display:flex;gap:8px}
+.maptools button{padding:6px 12px;font-size:13px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+
+/* command */
+.cmdrow{display:flex;gap:10px}
+.cmdrow input{flex:1}
+.go{background:var(--accent);color:#3a2c05;font-weight:700;box-shadow:5px 5px 12px #cdb894,-5px -5px 12px var(--hi)}
+.go:hover{color:#000}
+#reply{min-height:22px;margin-top:12px;font-weight:500}
+.quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.quick button{font-size:13px;padding:7px 13px}
+
+/* destination */
+.dest{display:flex;gap:10px}
+.dest select{flex:1;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 20px) 52%,calc(100% - 14px) 52%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+.route{margin-top:12px;font-size:13px;color:var(--muted);min-height:20px}
+.route b{color:var(--text);font-weight:600}
+.step{display:inline-block;padding:2px 9px;border-radius:99px;box-shadow:var(--in-sm);margin:3px 4px 0 0;color:var(--text);font-size:12px}
+
+/* drive */
+.drive{display:flex;gap:22px;align-items:center}
+.pad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:10px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad button{padding:0;border-radius:16px;font-size:18px;color:var(--muted)}
+.pad button.held{box-shadow:var(--in);color:var(--text)}
+.pad .stopk{color:var(--warn)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:10px;padding:0;border-radius:99px;box-shadow:var(--in-sm)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:var(--out-sm);border:0}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:var(--out-sm);border:0}
+kbd{font:500 12px var(--sans);padding:1px 7px;border-radius:6px;box-shadow:var(--out-sm)}
+
+/* safety */
+.safe{display:flex;align-items:center;gap:14px}
+.badge{padding:6px 14px;border-radius:99px;font-weight:700;font-size:13px;letter-spacing:.4px;box-shadow:var(--in-sm)}
+.badge.ok{color:#557a52}.badge.slow{color:#9a7310}.badge.stop{color:#fff;background:var(--warn);box-shadow:none}
+.srcs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+
+/* metrics */
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+canvas#spark{width:100%;height:56px;display:block;margin-top:14px}
+
+/* places */
+.taglist{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.taglist span{font-size:12px;padding:4px 10px;border-radius:99px;box-shadow:var(--in-sm)}
+#log{font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;
+  padding:12px 14px;border-radius:var(--r-sm);box-shadow:var(--in-sm)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1060px){
+  .grid{grid-template-columns:1fr}
+  .wrap{padding:16px 16px 110px}
+  .lane{grid-template-columns:1fr 1fr}
+  .mapbox{height:58vw;min-height:280px}
+  #estop{position:fixed;left:16px;right:16px;bottom:max(14px,env(safe-area-inset-bottom));z-index:20;padding:18px;font-size:17px}
+}
+@media (max-width:520px){
+  h1{font-size:22px}
+  header{gap:12px}
+  .seg{width:100%}.seg button{flex:1}
+  .metrics{grid-template-columns:1fr 1fr}
+  .drive{flex-direction:column;align-items:stretch}
+  .pad{margin:0 auto}
+  .card{padding:18px 16px}
+  .srcs{grid-template-columns:1fr}
+  .keys{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .layer{transform:none!important}
+}
+</style>
+</head>
+<body>
+<!-- decorative parallax: generic rubber-duck silhouettes, drawn here -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="duck" viewBox="0 0 120 90">
+      <path d="M18 54c0-13 12-22 30-22 7 0 12 1 16 3-3-4-5-9-5-14 0-12 10-21 22-21s21 9 21 20c0 4-1 7-3 10l11 2c3 1 3 4 0 5l-12 3c-2 1-3 2-3 4 4 4 6 9 6 14 0 18-19 30-44 30C30 88 12 78 10 64c-1-5 3-9 8-10z"/>
+      <path d="M26 58c8 8 22 10 34 5" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="duckmark" viewBox="0 0 120 90">
+      <path fill="#E9B949" d="M18 54c0-13 12-22 30-22 7 0 12 1 16 3-3-4-5-9-5-14 0-12 10-21 22-21s21 9 21 20c0 4-1 7-3 10l11 2c3 1 3 4 0 5l-12 3c-2 1-3 2-3 4 4 4 6 9 6 14 0 18-19 30-44 30C30 88 12 78 10 64c-1-5 3-9 8-10z"/>
+      <path fill="#D9785B" d="M100 30l13 2c3 1 3 4 0 5l-13 3z"/>
+      <circle cx="84" cy="21" r="3.6" fill="#3D3833"/>
+      <path d="M30 60c8 7 20 8 30 4" fill="none" stroke="#c99a2e" stroke-width="3.4" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+<div id="ducks" aria-hidden="true"></div>
+
+<div class="wrap">
+<header>
+  <div class="brand">
+    <div class="logo"><svg width="30" height="23"><use href="#duckmark"/></svg></div>
+    <div>
+      <h1>entebot209</h1>
+      <div class="sub"><span class="dot lost" id="conn"></span><span id="sub">connecting…</span></div>
+    </div>
+  </div>
+  <div class="seg" role="group" aria-label="Control mode">
+    <button id="bMAN" type="button">Manual</button>
+    <button id="bAUTO" type="button">Auto</button>
+  </div>
+  <button id="estop" type="button" aria-label="Emergency stop (Space)">E-STOP</button>
+</header>
+<div id="alert" role="alert"><span id="alertText"></span><button type="button" id="takeover">Take over</button></div>
+
+<div class="grid">
+  <div class="col">
+    <section class="card">
+      <h2>Camera <span class="tag num" id="fpsTag"></span></h2>
+      <div class="cam"><img id="cam" alt="Live camera view"><div id="camMsg">waiting for camera…</div></div>
+      <div class="chips" id="layers">
+        <button type="button" class="chip on" data-l="lanes">Lanes</button>
+        <button type="button" class="chip on" data-l="yolo">Ducks (YOLO)</button>
+        <button type="button" class="chip" data-l="tags">AprilTags</button>
+        <button type="button" class="chip" data-l="corridor">Corridor</button>
+      </div>
+      <div class="lane">
+        <div class="stat">
+          <div class="k">Lateral offset d</div>
+          <div class="v num"><span id="ld">–</span><small>cm</small></div>
+          <div class="road" title="right lane: yellow line left, white edge right">
+            <div class="yl"></div><div class="ctr"></div><div class="wl"></div>
+            <svg class="bot" id="lbot" viewBox="0 0 20 20"><path d="M10 1l7 17-7-4-7 4z" fill="#3D3833"/></svg>
+          </div>
+        </div>
+        <div class="stat"><div class="k">Heading error φ</div><div class="v num"><span id="lphi">–</span><small>°</small></div><div class="k" id="lsrc" style="margin-top:8px">–</div></div>
+        <div class="stat"><div class="k">Confidence</div><div class="v num"><span id="lconf">–</span></div><div class="bar"><i id="lconfbar" style="width:0"></i></div></div>
+        <div class="stat"><div class="k">Lane state</div><div class="v" id="lstate" style="font-size:16px">–</div><div class="k" id="lstop" style="margin-top:8px">no red line</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Map <span class="tag" id="mapTag"></span></h2>
+      <div class="mapbox">
+        <canvas id="map" aria-label="Map. Click to drive to a point."></canvas>
+        <div class="maptools"><button type="button" id="fbtn">Follow</button><button type="button" id="resetMap">Reset map</button></div>
+      </div>
+      <div class="legend">
+        <span style="--c:#3D3833">robot</span><span style="--c:#E9B949">trail</span><span style="--c:#b7a58d">learned roads</span>
+        <span style="--c:#8FAE8B">planned route</span><span style="--c:#D9785B">stop lines / obstacles</span><span style="--c:#7d9fb8">places</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>Tell me where to go</h2>
+      <div class="cmdrow"><input id="nlp" placeholder="follow the lane · map the track · go to kitchen" aria-label="Command" autocomplete="off"><button type="button" class="go" id="send">Send</button></div>
+      <div class="quick" id="quick">
+        <button type="button" data-say="follow the lane">Follow the lane</button>
+        <button type="button" data-say="map the track">Map the track</button>
+        <button type="button" data-say="stop">Stop</button>
+      </div>
+      <div id="reply" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <h2>Destination <span class="tag" id="missionTag"></span></h2>
+      <div class="dest"><select id="destSel" aria-label="Saved place"><option value="">No saved places yet</option></select><button type="button" class="go" id="destGo">Go</button></div>
+      <div class="route" id="route">Save a place below, then pick it here.</div>
+    </section>
+
+    <section class="card">
+      <h2>Drive <span class="tag keys">hold <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows · <kbd>Space</kbd> stop</span></h2>
+      <div class="drive">
+        <div class="pad" id="pad">
+          <span></span><button type="button" data-k="f" aria-label="Forward">▲</button><span></span>
+          <button type="button" data-k="l" aria-label="Left">◀</button><button type="button" data-k="s" class="stopk" aria-label="Halt">■</button><button type="button" data-k="r" aria-label="Right">▶</button>
+          <span></span><button type="button" data-k="b" aria-label="Back">▼</button><span></span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="row" style="justify-content:space-between"><span class="small muted">Speed limit</span><span class="small num" id="gainV">60%</span></div>
+          <input id="gain" type="range" min="20" max="100" value="60" aria-label="Manual speed limit" style="margin-top:10px">
+          <p class="small muted" style="margin:14px 0 0">Driving by hand during an automatic trip takes over at once. The robot stops by itself if this page stops sending.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Obstacles</h2>
+      <div class="safe"><span class="badge ok" id="sBadge">CLEAR</span><span class="small" id="sReason">nothing in the lane</span></div>
+      <div class="srcs">
+        <div class="stat"><div class="k">Nearest (from bumper)</div><div class="v num"><span id="sNear">–</span><small>m</small></div></div>
+        <div class="stat"><div class="k">Safety stops</div><div class="v num" id="sStops">0</div></div>
+        <div class="stat"><div class="k">YOLO</div><div class="v" id="sYolo" style="font-size:15px">–</div></div>
+        <div class="stat"><div class="k">Front ToF</div><div class="v" id="sTof" style="font-size:15px">–</div></div>
+      </div>
+      <div class="small muted" id="dets" style="margin-top:12px">No objects detected.</div>
+    </section>
+
+    <section class="card">
+      <h2>Places &amp; tags</h2>
+      <div class="cmdrow"><input id="mname" placeholder="name, e.g. kitchen" aria-label="Place or tag name"><button type="button" class="go" id="markBtn">Save spot</button></div>
+      <div class="quick"><button type="button" id="tagBtn">Name tag in view</button><button type="button" id="saveMap">Save map</button></div>
+      <div class="small muted" id="inview" style="margin-top:12px">No tag in view</div>
+      <div class="taglist" id="placeList"></div>
+    </section>
+
+    <section class="card">
+      <h2>System</h2>
+      <div class="metrics" id="metrics"></div>
+      <canvas id="spark" width="600" height="112"></canvas>
+      <div class="small muted" style="margin-top:6px">speed <span style="color:#c99a2e">—</span> and position uncertainty <span style="color:#8FAE8B">—</span>, last minute</div>
+    </section>
+
+    <section class="card">
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+  </div>
+</div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let S = null, follow = true, lastOK = 0, goalXY = null;
+const held = new Set();
+
+/* ---------- API ---------- */
+async function cmd(o){
+  try{ const r = await fetch('/api/cmd', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(o)}); return await r.json(); }
+  catch(e){ return {}; }
+}
+const say = t => { $('reply').textContent = t || ''; };
+const setMode = m => cmd({type:'mode', mode:m});
+const toggleStop = () => cmd({type:'estop', on:!(S && S.estop)});
+
+/* ---------- camera ---------- */
+const cam = $('cam');
+// one rendered frame at a time (self-pacing, recovers by itself after restarts or network hiccups)
+let camLayers = '', camBusy = false, camTimer = 0;
+function layersNow(){ return [...document.querySelectorAll('#layers .chip.on')].map(b => b.dataset.l).join(','); }
+function nextFrame(delay){ clearTimeout(camTimer); camTimer = setTimeout(loadFrame, delay); }
+function loadFrame(){
+  if(document.hidden){ nextFrame(500); return; }
+  camBusy = true;
+  const img = new Image();
+  const done = ok => { camBusy = false; nextFrame(ok ? 120 : 1500); };
+  img.onload = () => { cam.src = img.src; $('camMsg').style.display = 'none'; done(true); };
+  img.onerror = () => { $('camMsg').style.display = 'grid'; $('camMsg').textContent = 'waiting for camera…'; done(false); };
+  img.src = '/api/frame?layers=' + layersNow() + '&t=' + Date.now();
+  setTimeout(() => { if(camBusy){ img.src = ''; done(false); } }, 4000);   // watchdog
+}
+function setStream(){ nextFrame(0); }
+document.querySelectorAll('#layers .chip').forEach(b => b.onclick = () => { b.classList.toggle('on'); setStream(); });
+setStream();
+
+/* ---------- commands ---------- */
+async function sendNLP(t){
+  t = (t || $('nlp').value).trim(); if(!t) return;
+  $('nlp').value = ''; say('…');
+  const r = await cmd({type:'nlp', text:t}); say(r.reply || 'No response');
+}
+$('send').onclick = () => sendNLP();
+$('nlp').onkeydown = e => { if(e.key === 'Enter') sendNLP(); };
+document.querySelectorAll('#quick button').forEach(b => b.onclick = () => sendNLP(b.dataset.say));
+$('bMAN').onclick = () => setMode('MANUAL');
+$('bAUTO').onclick = () => setMode('AUTO');
+$('estop').onclick = toggleStop;
+$('takeover').onclick = () => setMode('MANUAL');
+$('destGo').onclick = async () => {
+  const n = $('destSel').value; if(!n){ say('Save a place first.'); return; }
+  const r = await cmd({type:'goto_place', name:n}); say(r.reply || '');
+};
+$('markBtn').onclick = async () => { const n = $('mname').value.trim(); if(!n){ say('Type a name first'); return; } const r = await cmd({type:'mark', name:n}); say(r.reply || ''); };
+$('tagBtn').onclick = async () => { const n = $('mname').value.trim(); if(!n){ say('Type a name first'); return; } const r = await cmd({type:'name_tag', name:n}); say(r.reply || ''); };
+$('saveMap').onclick = async () => { const r = await cmd({type:'save_map'}); say(r.reply || ''); };
+$('resetMap').onclick = () => { if(confirm('Reset the map? This clears landmarks, the learned track graph and the road positions of places.')) cmd({type:'reset_map'}); };
+$('fbtn').onclick = () => { follow = !follow; $('fbtn').textContent = follow ? 'Follow' : 'Overview'; };
+$('gain').oninput = () => { $('gainV').textContent = $('gain').value + '%'; };
+
+/* ---------- manual drive: 10 Hz while held; the robot has a 0.4 s dead-man ---------- */
+const keymap = {w:'f', arrowup:'f', s:'b', arrowdown:'b', a:'l', arrowleft:'l', d:'r', arrowright:'r'};
+function vec(){ const g = $('gain').value / 100; let v = 0, w = 0;
+  if(held.has('f')) v += g; if(held.has('b')) v -= g; if(held.has('l')) w += g; if(held.has('r')) w -= g; return {v, w}; }
+function press(k){ held.add(k); padState(); if(S && S.mode === 'AUTO') setMode('MANUAL'); }
+function release(k){ held.delete(k); padState(); }
+function padState(){ document.querySelectorAll('#pad button').forEach(b => b.classList.toggle('held', held.has(b.dataset.k))); }
+addEventListener('keydown', e => {
+  const tg = e.target.tagName;
+  if((tg === 'INPUT' && e.target.type !== 'range') || tg === 'SELECT' || tg === 'TEXTAREA') return;
+  if(e.key === ' '){ e.preventDefault(); if(!e.repeat) toggleStop(); return; }
+  const k = keymap[e.key.toLowerCase()]; if(k){ e.preventDefault(); if(!held.has(k)) press(k); }
+});
+addEventListener('keyup', e => { const k = keymap[e.key.toLowerCase()]; if(k) release(k); });
+addEventListener('blur', () => { held.clear(); padState(); });
+document.addEventListener('visibilitychange', () => { if(document.hidden){ held.clear(); padState(); } });
+document.querySelectorAll('#pad button').forEach(b => {
+  const k = b.dataset.k;
+  b.onpointerdown = e => { e.preventDefault(); if(k === 's'){ held.clear(); padState(); cmd({type:'manual', v:0, w:0}); return; } b.setPointerCapture(e.pointerId); press(k); };
+  b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => release(k);
+  b.oncontextmenu = e => e.preventDefault();
+});
+setInterval(() => { if(held.size){ const {v, w} = vec(); cmd({type:'manual', v, w}); } }, 100);
+
+/* ---------- smooth numbers ---------- */
+const tweens = new Map();
+function tw(el, val, digits){
+  if(val == null || !isFinite(val)){ tweens.delete(el); el.textContent = '–'; return; }
+  const t = tweens.get(el);
+  if(!t){ tweens.set(el, {cur:val, to:val, d:digits}); el.textContent = val.toFixed(digits); return; }
+  t.to = val; t.d = digits;
+}
+(function tick(){
+  for(const [el, t] of tweens){
+    const diff = t.to - t.cur;
+    t.cur = Math.abs(diff) < Math.pow(10, -t.d) / 2 ? t.to : t.cur + diff * 0.25;
+    const s = t.cur.toFixed(t.d);
+    if(el.textContent !== s) el.textContent = s;
+  }
+  requestAnimationFrame(tick);
+})();
+const f = (v, n = 2) => (v == null || !isFinite(v)) ? '–' : Number(v).toFixed(n);
+function setText(id, s){ const el = $(id); if(el.textContent !== s) el.textContent = s; }
+function setHTML(id, s){ const el = $(id); if(el._h !== s){ el._h = s; el.innerHTML = s; } }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- map ---------- */
+const cv = $('map'), ctx = cv.getContext('2d');
+let view = {cx:0, cy:0, s:90}, dpr = 1;
+function fit(){ const r = cv.getBoundingClientRect(); dpr = window.devicePixelRatio || 1; cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr); drawMap(); }
+new ResizeObserver(fit).observe(cv);
+const W2S = (x, y) => [cv.width / 2 + (x - view.cx) * view.s * dpr, cv.height / 2 - (y - view.cy) * view.s * dpr];
+const S2W = (px, py) => [view.cx + (px * dpr - cv.width / 2) / (view.s * dpr), view.cy - (py * dpr - cv.height / 2) / (view.s * dpr)];
+cv.onclick = e => { const r = cv.getBoundingClientRect(); const [x, y] = S2W(e.clientX - r.left, e.clientY - r.top); goalXY = [x, y];
+  cmd({type:'goto_xy', x, y}).then(r => say(r.reply || '')); };
+function drawMap(){
+  if(!S || !cv.width) return;
+  const p = S.pose, g = S.graph || {nodes:[], edges:[]}, P = n => n * dpr;
+  const pts = [[p.x, p.y], ...(S.landmarks || []).map(l => [l.x, l.y]), ...(S.trail || []), ...g.nodes.map(n => [n.x, n.y])];
+  const W = cv.width / dpr, H = cv.height / dpr;
+  if(follow){ view.cx = p.x; view.cy = p.y; view.s = 110; }
+  else{
+    const xs = pts.map(a => a[0]), ys = pts.map(a => a[1]);
+    const x0 = Math.min(...xs) - .4, x1 = Math.max(...xs) + .4, y0 = Math.min(...ys) - .4, y1 = Math.max(...ys) + .4;
+    view.cx = (x0 + x1) / 2; view.cy = (y0 + y1) / 2; view.s = Math.min(W / (x1 - x0), H / (y1 - y0), 180);
+  }
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  // grid every 0.5 m
+  ctx.strokeStyle = 'rgba(138,128,117,.16)'; ctx.lineWidth = 1;
+  const [wx0, wy1] = S2W(0, 0), [wx1, wy0] = S2W(W, H);
+  for(let x = Math.floor(wx0 * 2) / 2; x <= wx1; x += .5){ const [a, b] = W2S(x, wy0), [c, d] = W2S(x, wy1); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
+  for(let y = Math.floor(wy0 * 2) / 2; y <= wy1; y += .5){ const [a, b] = W2S(wx0, y), [c, d] = W2S(wx1, y); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); }
+  // learned graph: edges (curved, arrowed), route highlighted
+  const byId = {}; g.nodes.forEach(n => byId[n.id] = n);
+  const onRoute = new Set((S.route || []).map(r => r.node + ':' + r.turn));
+  const m = S.mission || {};
+  if(m.last_node != null && m.last_turn) onRoute.add(m.last_node + ':' + m.last_turn);
+  g.edges.forEach(e => {
+    const a = byId[e.from], b = byId[e.to]; if(!a || !b) return;
+    const [ax, ay] = W2S(a.x, a.y), [bx, by] = W2S(b.x, b.y);
+    const mx = (ax + bx) / 2, my = (ay + by) / 2, bend = e.turn === 'left' ? -.18 : e.turn === 'right' ? .18 : .06;
+    const cx = mx - (by - ay) * bend, cy = my + (bx - ax) * bend;
+    const hot = onRoute.has(e.from + ':' + e.turn);
+    ctx.strokeStyle = hot ? '#8FAE8B' : 'rgba(150,132,108,.55)'; ctx.lineWidth = P(hot ? 4 : 2.2);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(cx, cy, bx, by); ctx.stroke();
+    const ang = Math.atan2(by - cy, bx - cx); ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath(); ctx.moveTo(bx - Math.cos(ang) * P(12), by - Math.sin(ang) * P(12));
+    ctx.lineTo(bx - Math.cos(ang - .45) * P(22), by - Math.sin(ang - .45) * P(22)); ctx.lineTo(bx - Math.cos(ang + .45) * P(22), by - Math.sin(ang + .45) * P(22)); ctx.fill();
+  });
+  // trail
+  ctx.strokeStyle = '#E9B949'; ctx.lineWidth = P(3); ctx.lineCap = 'round'; ctx.setLineDash([P(9), P(7)]); ctx.beginPath();
+  (S.trail || []).forEach((q, i) => { const [a, b] = W2S(q[0], q[1]); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.stroke(); ctx.setLineDash([]);
+  // obstacles
+  ctx.fillStyle = 'rgba(217,120,91,.75)';
+  (S.obstacles || []).forEach(o => { const [a, b] = W2S(o.x, o.y); ctx.beginPath(); ctx.arc(a, b, P(4), 0, 7); ctx.fill(); });
+  // stop-line nodes
+  ctx.font = '600 ' + P(11) + 'px ' + getComputedStyle(document.body).fontFamily;
+  g.nodes.forEach(n => {
+    const [a, b] = W2S(n.x, n.y);
+    ctx.save(); ctx.translate(a, b); ctx.rotate(-n.th);
+    ctx.fillStyle = '#D9785B'; ctx.fillRect(P(6), -P(10), P(5), P(20));            // the red line, across the lane ahead
+    ctx.restore();
+    ctx.fillStyle = '#EFE8DD'; ctx.strokeStyle = '#D9785B'; ctx.lineWidth = P(2);
+    ctx.beginPath(); ctx.arc(a, b, P(9), 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#3D3833'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.id, a, b + P(.5));
+    if(n.unexplored && n.unexplored.length){ ctx.fillStyle = '#c99a2e'; ctx.beginPath(); ctx.arc(a + P(9), b - P(9), P(3.5), 0, 7); ctx.fill(); }
+  });
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  // places
+  ctx.font = '500 ' + P(12) + 'px ' + getComputedStyle(document.body).fontFamily;
+  const spots = {};                                   // places sharing a spot get one marker, names joined
+  Object.entries(S.places || {}).forEach(([n, q]) => { const k = q[0].toFixed(2) + ',' + q[1].toFixed(2); (spots[k] = spots[k] || {q, n: []}).n.push(n); });
+  Object.values(spots).forEach(({q, n}) => {
+    const [a, b] = W2S(q[0], q[1]); const goal = m.mode === 'goto' && n.includes(m.goal);
+    ctx.fillStyle = goal ? '#8FAE8B' : '#7d9fb8';
+    ctx.beginPath(); ctx.moveTo(a, b - P(8)); ctx.lineTo(a + P(7), b); ctx.lineTo(a, b + P(8)); ctx.lineTo(a - P(7), b); ctx.fill();
+    ctx.fillStyle = '#3D3833'; ctx.fillText(n.join(' · '), a + P(11), b + P(18));
+  });
+  // AprilTag landmarks
+  (S.landmarks || []).forEach(l => { const [a, b] = W2S(l.x, l.y); const vis = (S.tags_visible || []).includes(l.id);
+    ctx.fillStyle = vis ? '#3D3833' : '#a99c8c'; ctx.fillRect(a - P(6), b - P(6), P(12), P(12));
+    ctx.fillStyle = '#3D3833'; ctx.fillText(l.name ? l.name + ' #' + l.id : '#' + l.id, a + P(10), b - P(8)); });
+  // click goal
+  if(goalXY && S.goal && S.nav_state !== 'IDLE' && S.nav_state !== 'ARRIVED'){ const [a, b] = W2S(goalXY[0], goalXY[1]);
+    ctx.strokeStyle = '#8FAE8B'; ctx.lineWidth = P(2.5); ctx.beginPath(); ctx.arc(a, b, P(10), 0, 7); ctx.stroke(); }
+  // uncertainty + robot
+  const [rx, ry] = W2S(p.x, p.y); const el = S.ellipse || [0, 0, 0];
+  ctx.save(); ctx.translate(rx, ry);
+  ctx.save(); ctx.rotate(-el[2]); ctx.strokeStyle = 'rgba(125,159,184,.7)'; ctx.lineWidth = P(1.5);
+  ctx.beginPath(); ctx.ellipse(0, 0, Math.max(el[0] * 2 * view.s * dpr, P(7)), Math.max(el[1] * 2 * view.s * dpr, P(7)), 0, 0, 7); ctx.stroke(); ctx.restore();
+  ctx.rotate(-p.th); ctx.fillStyle = '#3D3833';
+  ctx.beginPath(); ctx.moveTo(P(15), 0); ctx.lineTo(-P(9), -P(9)); ctx.lineTo(-P(5), 0); ctx.lineTo(-P(9), P(9)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- render ---------- */
+function metric(k, v, warn){ return `<div class="stat"><div class="k">${k}</div><div class="v num" style="font-size:16px${warn ? ';color:#D9785B' : ''}">${v}</div></div>`; }
+const LSTATE = {FOLLOW:'Following', DRIFT:'Correcting drift', SLOW:'Lines faint · slowing', REACQUIRE:'Searching for lines', LOST:'Lost · manual',
+  STOP_LINE:'At red line', TURN_LEFT:'Turning left', TURN_RIGHT:'Turning right', TURN_STRAIGHT:'Crossing', NO_LANE_DATA:'No lane data'};
+function render(){
+  const s = S, p = s.pose, L = s.lane || {}, m = s.mission || {}, sf = s.safety || {};
+  // header
+  const auto = s.mode === 'AUTO';
+  $('bMAN').className = auto ? '' : 'on'; $('bAUTO').className = auto ? 'on auto' : '';
+  $('estop').className = s.estop ? 'on' : ''; setText('estop', s.estop ? 'RELEASE' : 'E-STOP');
+  const doing = s.estop ? 'stopped' : (m.mode && m.mode !== 'idle' ? ({follow:'following the lane', map:'mapping the track', goto:'driving to ' + m.goal}[m.mode] || m.mode) : (s.nav_state || '').toLowerCase().replace('_', ' '));
+  setText('sub', (auto ? 'auto' : 'manual') + ' · ' + doing);
+  $('alert').classList.toggle('show', !!s.alert); setText('alertText', s.alert || '');
+  setText('fpsTag', `lane ${f(s.fps.lane, 0)} fps · yolo ${s.sys.yolo_on ? f(s.fps.yolo, 1) : 'off'} fps`);
+
+  // lane
+  tw($('ld'), L.d != null ? L.d * 100 : null, 1);
+  tw($('lphi'), L.phi != null ? L.phi * 180 / Math.PI : null, 1);
+  tw($('lconf'), L.conf, 2);
+  const conf = L.conf || 0, lw = L.width || 0.23;
+  const bar = $('lconfbar'); bar.style.width = Math.round(conf * 100) + '%'; bar.style.background = conf > .45 ? '#8FAE8B' : conf > .25 ? '#E9B949' : '#D9785B';
+  const pos = Math.max(0, Math.min(1, 0.5 - (L.d || 0) / lw));                // left edge = yellow line
+  const bot = $('lbot'); bot.style.left = (pos * 100) + '%'; bot.style.transform = `rotate(${-(L.phi || 0) * 180 / Math.PI}deg)`; bot.style.opacity = conf > .15 ? 1 : .35;
+  setText('lsrc', L.src && L.src !== 'none' ? 'from ' + L.src.replace('+', ' + ') : 'no lines seen');
+  const st = s.lane_state || '';
+  setText('lstate', LSTATE[st] || (auto ? (s.nav_state || '–').toLowerCase() : 'Idle'));
+  setText('lstop', L.stop_dist != null ? `red line in ${f(L.stop_dist * 100, 0)} cm` : (s.next_turn ? 'next turn: ' + s.next_turn : 'no red line'));
+
+  // destination picker
+  const pt = s.place_topo || {};
+  const names = [...new Set(Object.keys(s.places || {}).filter(n => n !== 'start').concat(Object.keys(pt)))].sort();
+  const sel = $('destSel'), want = names.join('|');
+  if(sel._names !== want){
+    const keep = sel.value; sel._names = want;
+    sel.innerHTML = names.length ? names.map(n => `<option value="${esc(n)}">${esc(n)}${pt[n] ? (pt[n].pending ? ' · road pending' : ' · on the track map') : ''}</option>`).join('') : '<option value="">No saved places yet</option>';
+    if(names.includes(keep)) sel.value = keep;
+  }
+  let rt;
+  if(m.mode === 'goto'){
+    const steps = (s.route || []).map(r => `<span class="step">#${r.node} ${esc(r.turn)}</span>`).join('');
+    rt = `<b>To ${esc(m.goal)}</b>${m.message ? ' · ' + esc(m.message) : ''}<br>${steps || (m.next_turn ? '' : 'on the final road')}`;
+  } else if(m.mode === 'map'){
+    const g = s.graph || {nodes:[]}; const open = g.nodes.reduce((a, n) => a + (n.unexplored || []).length, 0);
+    rt = `<b>Mapping</b> · ${g.nodes.length} intersections, ${(g.edges || []).length} roads, ${open} turns left to try`;
+  } else rt = names.length ? 'Pick a place and press Go. Routes follow the lanes.' : 'Save a place below, then pick it here.';
+  setHTML('route', rt);
+  setText('missionTag', m.at_node != null ? 'at intersection #' + m.at_node : (m.last_node != null ? `${f(m.edge_dist, 2)} m past #${m.last_node} ${m.last_turn}` : ''));
+  const g = s.graph || {nodes:[], edges:[]};
+  setText('mapTag', `${g.nodes.length} intersections · ${g.edges.length} roads`);
+
+  // safety
+  const b = $('sBadge');
+  if(sf.stopped){ b.className = 'badge stop'; b.textContent = 'STOPPED'; }
+  else if(sf.reason){ b.className = 'badge slow'; b.textContent = 'SLOWING'; }
+  else { b.className = 'badge ok'; b.textContent = 'CLEAR'; }
+  setText('sReason', sf.reason || 'nothing in the lane');
+  tw($('sNear'), sf.nearest, 2); setText('sStops', String(sf.stops || 0));
+  const src = sf.sources || {};
+  setText('sYolo', src.yolo || '–'); setText('sTof', src.tof || '–');
+  $('sYolo').style.color = /STALE/.test(src.yolo || '') ? '#D9785B' : ''; $('sTof').style.color = /STALE/.test(src.tof || '') ? '#D9785B' : '';
+  setText('dets', (s.detections || []).length ? 'Seen: ' + s.detections.map(d => `${d.cls} ${d.conf}${d.dist > 0 ? ' @ ' + d.dist + ' m' : ''}`).join(', ') : 'No objects detected.');
+
+  // places & tags
+  setText('inview', (s.tag_view || []).length ? 'In view: ' + s.tag_view.map(t => (t.vehicle ? 'robot ' : 'tag ') + t.id + ' (' + t.range + ' m)').join(', ') : 'No tag in view. Point the camera at one to name it.');
+  setHTML('placeList', Object.keys(s.places || {}).map(n => `<span>${esc(n)}</span>`).join('') + (s.landmarks || []).filter(l => l.name).map(l => `<span>${esc(l.name)} · tag ${l.id}</span>`).join(''));
+
+  // system
+  setHTML('metrics',
+    metric('x, y (m)', f(p.x) + ', ' + f(p.y)) + metric('heading', f(p.th * 180 / Math.PI, 0) + '°') + metric('speed', f(s.v) + ' m/s') +
+    metric('turn rate', f(s.w) + ' rad/s') + metric('uncertainty', f(s.unc) + ' m', s.unc > .35) + metric('CPU temp', s.sys.temp == null ? '–' : s.sys.temp + ' °C', s.sys.temp > 75) +
+    metric('tags', (s.landmarks || []).length + ' mapped') + metric('gyro', s.slam.gyro ? 'fused' : 'off', !s.slam.gyro) + metric('language', s.sys.needle ? 'Needle' : 'rules') +
+    metric('motors', s.motor_out || '–') + metric('tag fps', f(s.fps.tag, 1)) + metric('SLAM ok / rej', s.slam.accepted + ' / ' + s.slam.rejected));
+  const lg = (s.log || []).join('\n'); if($('log')._l !== lg){ $('log')._l = lg; $('log').textContent = lg; }
+  spark(); drawMap();
+}
+function spark(){
+  const c = $('spark'), x = c.getContext('2d'), h = S.history || []; x.clearRect(0, 0, c.width, c.height);
+  const line = (k, max, col) => { x.strokeStyle = col; x.lineWidth = 3; x.lineJoin = 'round'; x.beginPath();
+    h.forEach((q, i) => { const X = i / 119 * c.width, Y = c.height - 6 - Math.min(Math.abs(q[k]) / max, 1) * (c.height - 12); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.stroke(); };
+  line('v', 0.3, '#E9B949'); line('u', 0.6, '#8FAE8B');
+}
+
+/* ---------- polling (one request in flight, every 200 ms) ---------- */
+async function poll(){
+  try{
+    const r = await fetch('/api/state', {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    S = await r.json(); lastOK = Date.now(); render();
+  }catch(e){ /* robot restarting or offline: show it, keep trying */ }
+  const ok = Date.now() - lastOK < 1500;
+  $('conn').classList.toggle('lost', !ok);
+  if(!ok) setText('sub', lastOK ? 'connection lost · retrying…' : 'connecting…');
+  setTimeout(poll, 200);
+}
+poll();
+
+/* ---------- duck parallax ---------- */
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const host = $('ducks');
+  // depth: [colour, scale, count, mouse factor, scroll factor]
+  const layers = [['var(--duck4)', .55, 7, 6, .04], ['var(--duck1)', .85, 5, 14, .10], ['var(--duck2)', 1.25, 4, 26, .18], ['var(--duck3)', 1.8, 3, 42, .28]];
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const els = layers.map(([col, sc, n]) => {
+    const L = document.createElement('div'); L.className = 'layer';
+    for(let i = 0; i < n; i++){
+      const w = Math.round(120 * sc * (0.8 + rnd() * 0.4));
+      const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      s.setAttribute('width', w); s.setAttribute('height', Math.round(w * .75));
+      s.style.left = (rnd() * 92) + '%'; s.style.top = (rnd() * 92) + '%'; s.style.fill = col;
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      if(rnd() > .5) s.style.transform = 'scaleX(-1)';
+      const u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#duck'); s.appendChild(u); L.appendChild(s);
+    }
+    host.appendChild(L); return L;
+  });
+  let mx = 0, my = 0, tx = 0, ty = 0, raf = 0;
+  function apply(){
+    raf = 0; tx += (mx - tx) * .06; ty += (my - ty) * .06;
+    const sy = scrollY;
+    els.forEach((L, i) => { const [, , , m, s] = layers[i]; L.style.transform = `translate3d(${(-tx * m).toFixed(1)}px, ${(-ty * m - sy * s).toFixed(1)}px, 0)`; });
+    if(Math.abs(mx - tx) > .002 || Math.abs(my - ty) > .002) raf = requestAnimationFrame(apply);
+  }
+  const kick = () => { if(!reduce.matches && !raf) raf = requestAnimationFrame(apply); };
+  addEventListener('pointermove', e => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; kick(); }, {passive:true});
+  addEventListener('scroll', kick, {passive:true});
+  reduce.addEventListener('change', () => { if(reduce.matches) els.forEach(L => L.style.transform = 'none'); else kick(); });
+})();
+</script>
+</body>
+</html>

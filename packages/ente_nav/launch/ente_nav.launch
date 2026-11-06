@@ -1,0 +1,5 @@
+<launch>
+  <node name="ente_brain" pkg="ente_nav" type="ente_brain_node.py" output="screen" required="true">
+    <rosparam command="load" file="$(find ente_nav)/config/ente_nav.yaml"/>
+  </node>
+</launch>

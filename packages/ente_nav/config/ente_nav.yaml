@@ -1,0 +1,149 @@
+# ---- command output (verify with: rostopic info /entebot209/car_cmd_switch_node/cmd) ----
+car_cmd_topic: /entebot209/car_cmd_switch_node/cmd
+port: 8090                 # 8080 is taken by the Duckietown dashboard on the robot
+
+# ---- robot geometry (DB21: check yours with `dts duckiebot calibrate_wheels`) ----
+wheel_radius: 0.0318
+baseline: 0.102
+encoder_resolution: 135
+# encoder topics (verify with: rostopic list | grep tick). On entebot209 only *_wheel_encoder_driver_node publishes.
+left_tick_topic: /entebot209/left_wheel_encoder_driver_node/tick
+right_tick_topic: /entebot209/right_wheel_encoder_driver_node/tick
+gyro_weight: 0.0           # 0 = encoders only. imu_node/raw z read ~5 deg for a real 360 deg turn (2026-11-05): fix axis/scale before enabling
+imu_topic: /entebot209/imu_node/raw    # this robot publishes no imu_node/data
+
+# ---- camera mounting (measure yours; used to turn pixels into floor distances) ----
+cam_height: 0.10           # metres above floor
+cam_tilt_deg: 12.0         # downward tilt
+cam_forward: 0.06          # camera ahead of wheel axle
+tag_size: 0.065            # printed AprilTag black-square edge, metres
+tag_decimate: 2.0          # AprilTag detector downsampling (1 = full res, slow on the Jetson)
+tag_hz: 4.0                # AprilTags are optional landmarks: cap their rate to leave CPU for lanes + YOLO
+ground_y_offset: 0.145      # m added to floor "left": robot centred in the lane read d=+0.148 (2026-11-05)
+ground_scale: 1.36         # multiplies floor distances from the extrinsic calibration (set by tools/tune_lanes.py)
+
+# ---- speeds / safety ----
+v_max: 0.18
+w_max: 2.5
+manual_v: 0.25
+manual_w: 3.0
+slew_v: 0.6
+slew_w: 6.0
+goal_tol: 0.02          # arrival tolerance (m); 0.08 made "forward 20 cm" stop at ~12 cm
+stop_dist: 0.30
+obstacle_wait: 4.0
+corridor_half_width: 0.14
+offcourse: 0.30            # warn operator beyond this cross-track error (m)
+unc_max: 0.35              # above this, spin to find a landmark
+reloc_timeout: 20.0        # give up and hand control to the human
+
+# ---- YOLO (ONNX files live in models/; class names are read from the file itself) ----
+yolo_every_n_frames: 3
+yolo_models:
+  - {file: duckie.onnx, conf: 0.4}          # from lx-object-detection-ente (class: yellow rubber duck)
+  # - {file: duckiebot.onnx, conf: 0.4}     # your own multi-class model, see README "Detect other Duckiebots"
+ignore_classes: []                           # class names to NOT treat as obstacles
+
+# AprilTag IDs printed on the BACK of other Duckiebots. Matching tags are treated as moving
+# obstacles and never added to the map. Leave empty unless you know your bots' tag IDs.
+vehicle_tag_ids: []
+
+# ---- language commands ----
+# Needle runs on your laptop (see README). Leave empty to use only the built-in rule parser.
+nlp_url: ""            # e.g. http://192.168.1.50:5005/parse
+
+# ---- map persistence ----
+load_map: true         # reload saved landmarks/places from /data/ente_map.json (start from the SAME start mark)
+
+# ---- map knowledge (optional) ----
+# Friendly names for AprilTag IDs, so "go to the stop sign" works once that tag has been seen.
+tag_names: {}   # usually empty: name tags from the dashboard instead
+# If you know where tags are in your own frame (metres, origin = robot start pose), anchor the map:
+known_landmarks: {}
+
+# ---- motor output ----
+# auto: publish to car_cmd_topic if a kinematics node is listening, otherwise drive
+#       /<veh>/wheels_driver_node/wheels_cmd directly using /data/config/calibrations/kinematics/<veh>.yaml
+drive_output: auto
+wheels_cmd_topic: /entebot209/wheels_driver_node/wheels_cmd
+
+# ---- lane geometry (metres) ----
+lane_width: 0.23           # white inner edge -> yellow inner edge. MEASURE YOURS
+white_tape_width: 0.048
+yellow_tape_width: 0.025
+
+# ---- lane perception (OpenCV HSV: H 0-180, S/V 0-255). Tuned on frames from ~/ente_frames ----
+lanes:
+  scale: 0.25              # process at 1/4 resolution
+  roi_top: 0.50            # ignore image rows above this fraction (walls, horizon)
+  roi_bottom: 1.0
+  open_k: 3                # morphological opening (px at processing scale), 0 = off
+  white:  {h: [0, 180], s: [0, 36],   v: [110, 255]}     # cream / aged-white tape (camera image is very desaturated)
+  yellow: {h: [18, 34],  s: [38, 255], v: [100, 255]}    # mustard dashed centre line (S only ~40-66 on camera)
+  red:    {h1: [0, 11], h2: [166, 180], s: [35, 255], v: [85, 255]}   # salmon/coral stop lines
+  yellow_min_b: 10         # yellow must also have Lab b* >= 128+this (mustard vs cream tape)
+  white_rel_v: 40          # >0: white must be this much brighter than the ROI median (lighting-adaptive)
+  white_tophat: 0          # >0: white must stand out from local background by this much (rejects glare)
+  white_tophat_k: 15
+  x_min: 0.06              # use floor points between x_min..x_max metres ahead
+  x_max: 0.45              # near range only: a curve is ~straight here
+  gate: 0.07               # once locked, only accept line points within this of the prediction (m)
+  red_min_pts: 10
+  stop_min_width: 0.07     # a stop line must span at least this much across our lane (m)
+
+# ---- lane following (step 2) ----
+lane_control:
+  w_max: 2.0              # rad/s cap while lane following
+  kd_rate: 0.0
+  v_nom: 0.15              # default lane speed (m/s); "slow/medium/fast" scale this
+  v_min: 0.05
+  kd: 5.0                  # omega per metre of lateral offset
+  kphi: 2.0                # omega per radian of heading error
+  ki: 0.2                  # integral of the steering error (cancels wheel trim)
+  drift_d: 0.05            # beyond this |d| (m) or |phi| (rad) correct harder and slow down
+  drift_phi: 0.35
+  drift_gain: 1.3          # kd multiplier while drifting
+  yellow_guard: 0.045      # never steer further left when d exceeds this (robot edge near the yellow line)
+  lost_conf: 0.25          # lane confidence below this counts as "lost"
+  slow_after: 0.5          # s of low confidence -> half speed
+  stop_after: 1.5          # s -> stop and sweep slowly to re-acquire
+  manual_after: 8.0        # s of sweeping -> hand over to manual with an alert
+
+# ---- intersections (step 4). Radii default from lane_width; override after watching a turn ----
+intersection:
+  stop_target: 0.12        # stop when the red line's near edge is this far ahead of the axle (m)
+  stop_wait: 1.0
+  v_arc: 0.12
+  pre_extra: 0.0           # extra straight distance before starting the arc (m)
+  r_right: 0               # 0 = default lane_width/2 + white tape
+  r_left: 0                # 0 = default 1.5*lane_width + white + yellow tape
+  straight_len: 0          # 0 = default one intersection width + 5 cm
+  exit_block_pts: 30       # white-line evidence (points) that marks an exit as not existing
+
+# ---- topological map ----
+node_match_r: 0.40         # a stop line within this distance and heading of a known one is the same node
+node_match_r_edge: 0.80    # ...when arriving over an already known edge (odometry drift allowance)
+node_match_th: 0.6
+
+# ---- obstacle safety (step 3), distances from the FRONT bumper ----
+tof_topic: /entebot209/front_center_tof_driver_node/range
+safety:
+  slow_dist: 0.50
+  stop_dist: 0.25
+  clear_time: 1.5
+  front_offset: 0.08       # axle -> front bumper (m)
+  yolo_stale: 3.0          # min; YOLO is stale after max(this, 2.5 x its own cycle time) -> obstacle
+  tof_stale: 0.5
+
+# ---- motors: closed-loop wheel speeds from the encoders (the DB21 motors stall below ~0.25 duty) ----
+wheel_pi: true             # false = old open-loop path (car_cmd / wheels_cmd duty)
+motor:
+  u_static: 0.15           # duty added to break static friction
+  kp: 1.2
+  ki: 3.0
+  stall_u: 0.45            # driven this hard with no wheel motion for stall_t s -> output cut + log
+  stall_t: 1.5
+
+# ---- CPU budget (Jetson Nano, no GPU in this image) ----
+yolo_threads: 1            # YOLO takes ~3 s/frame here; ToF is the fast obstacle sensor
+lane_hz: 15
